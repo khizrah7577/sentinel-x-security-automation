@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Card, ErrorBlock, LoadingBlock, PageHeader } from "../components/nexus/primitives";
+import { buildApiUrl, getToken } from "../services/api";
 import { useApi } from "../hooks/useApi";
 
 type Summary = {
@@ -21,8 +22,8 @@ export default function ReportsPage() {
     setBusy(kind);
     setError(null);
     try {
-      const token = localStorage.getItem("csfyp_token");
-      const res = await fetch(`/api/v1/reports/incidents.${kind}`, {
+      const token = getToken();
+      const res = await fetch(buildApiUrl(`/reports/incidents.${kind}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(`Export failed (${res.status})`);

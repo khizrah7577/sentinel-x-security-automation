@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api, ApiError } from "../services/api";
+import { api, ApiError, HealthApi } from "../services/api";
 import { useTheme, type ThemeMode } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { GlassPanel, PageHeader } from "../components/nexus/primitives";
@@ -302,8 +302,7 @@ function useHealth() {
     database?: { status: string; error?: string };
   } | null>(null);
   useEffect(() => {
-    void fetch("/api/v1/health")
-      .then((r) => r.json())
+    void HealthApi.get()
       .then(setHealth)
       .catch(() => setHealth(null));
   }, []);

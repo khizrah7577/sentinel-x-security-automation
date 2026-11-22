@@ -86,3 +86,8 @@ docker-data/
 # Office lock files
 ~$*
 *.tmp.docx
+.vercel
+.env*
+!*.example
+!**/.env*.example
+*.tsbuildinfo

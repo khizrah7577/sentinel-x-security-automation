@@ -1,4 +1,59 @@
-const API_BASE = "/api/v1";
+/**
+ * API service and types for SENTINEL X.
+ * Configured to work with local dev proxy, relative paths, or remote Railway backend via VITE_API_BASE_URL.
+ */
+
+function resolveApiBase(): string {
+  const envUrl = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (!envUrl) {
+    return "/api/v1";
+  }
+  if (envUrl.endsWith("/api/v1")) {
+    return envUrl;
+  }
+  return `${envUrl}/api/v1`;
+}
+
+export const API_BASE = resolveApiBase();
+
+/**
+ * Builds the full endpoint URL.
+ * Handles paths starting with or without /api/v1 and prevents duplicate prefixes.
+ */
+export function buildApiUrl(path: string): string {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (cleanPath.startsWith("/api/v1/")) {
+    const baseWithoutPrefix = API_BASE.replace(/\/api\/v1$/, "");
+    return `${baseWithoutPrefix}${cleanPath}`;
+  }
+  return `${API_BASE}${cleanPath}`;
+}
+
+/**
+ * Builds a WebSocket URL for backend real-time endpoints (e.g. notifications).
+ * Converts http(s) -> ws(s) pointing directly to Railway host or local host.
+ */
+export function getWebSocketUrl(path: string, token?: string | null): string {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const fullApiPath = cleanPath.startsWith("/api/v1") ? cleanPath : `/api/v1${cleanPath}`;
+
+  let wsUrl: string;
+  if (API_BASE.startsWith("http://") || API_BASE.startsWith("https://")) {
+    const parsed = new URL(API_BASE);
+    const wsProto = parsed.protocol === "https:" ? "wss:" : "ws:";
+    wsUrl = `${wsProto}//${parsed.host}${fullApiPath}`;
+  } else {
+    const proto = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = typeof window !== "undefined" ? window.location.host : "127.0.0.1:8000";
+    wsUrl = `${proto}://${host}${fullApiPath}`;
+  }
+
+  if (token) {
+    const sep = wsUrl.includes("?") ? "&" : "?";
+    wsUrl += `${sep}token=${encodeURIComponent(token)}`;
+  }
+  return wsUrl;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -8,7 +63,7 @@ export class ApiError extends Error {
   }
 }
 
-function getToken(): string | null {
+export function getToken(): string | null {
   return localStorage.getItem("csfyp_token");
 }
 
@@ -23,15 +78,20 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     headers.set("Content-Type", "application/json");
   }
   const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const url = buildApiUrl(path);
+  const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
     let detail: string = `Request failed (${res.status})`;
     try {
       const data = await res.json();
       detail = data.detail || detail;
-      if (Array.isArray(detail)) detail = detail.map((d: { msg?: string }) => d.msg || d).join(", ");
+      if (Array.isArray(detail)) {
+        detail = detail.map((d: { msg?: string }) => d.msg || d).join(", ");
+      }
     } catch {
       /* ignore */
     }
@@ -153,6 +213,11 @@ export const AuthApi = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+  register: (data: { email: string; full_name: string; password: string; role?: "admin" | "analyst" }) =>
+    api<User>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   me: () => api<User>("/auth/me"),
   logout: () => api<{ message: string }>("/auth/logout", { method: "POST" }),
 };
@@ -162,7 +227,7 @@ export const DashboardApi = {
 };
 
 export const HealthApi = {
-  get: () => fetch("/api/v1/health").then((r) => r.json() as Promise<Health>),
+  get: () => api<Health>("/health"),
 };
 
 export const AnalyticsApi = {

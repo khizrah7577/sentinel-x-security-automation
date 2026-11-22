@@ -6,11 +6,21 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Host default (Windows FYP). Containers override with PROJECT_ROOT=/app.
-_DEFAULT_ROOT = Path(os.environ.get("PROJECT_ROOT", r"D:\CyberSecurity_FYP"))
-PROJECT_ROOT = _DEFAULT_ROOT
+
+def _resolve_project_root() -> Path:
+    if "PROJECT_ROOT" in os.environ:
+        return Path(os.environ["PROJECT_ROOT"])
+    default_win = Path(r"D:\CyberSecurity_FYP")
+    if default_win.is_dir():
+        return default_win
+    # Fallback to repo root based on this file's location (.../backend/app/core/config.py -> root)
+    return Path(__file__).resolve().parent.parent.parent.parent
+
+
+PROJECT_ROOT = _resolve_project_root()
 
 
 def _env_file_candidates() -> tuple[str, ...]:
@@ -75,6 +85,36 @@ class Settings(BaseSettings):
     bootstrap_admin_password: str = "ChangeMeAdmin123!"
     bootstrap_analyst_email: str = "analyst@localhost"
     bootstrap_analyst_password: str = "ChangeMeAnalyst123!"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, v: str) -> str:
+        """Ensure SQLAlchemy psycopg3 driver prefix is used."""
+        if not isinstance(v, str):
+            return v
+        v = v.strip()
+        # Cloud platforms like Railway/Heroku provide postgres:// or postgresql://
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+psycopg://", 1)
+        if v.startswith("postgresql://") and not v.startswith("postgresql+"):
+            return v.replace("postgresql://", "postgresql+psycopg://", 1)
+        return v
+
+    def model_post_init(self, __context) -> None:
+        """Ensure runtime directories exist safely without throwing errors."""
+        for d in (
+            self.data_dir,
+            self.pcap_dir,
+            self.model_dir,
+            self.dataset_dir,
+            self.log_dir,
+            self.report_dir,
+            self.secret_store_dir,
+        ):
+            try:
+                d.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
 
 
 @lru_cache

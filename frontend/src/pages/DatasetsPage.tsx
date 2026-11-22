@@ -46,19 +46,12 @@ export default function DatasetsPage() {
     setError(null);
     setMessage(null);
     try {
-      const token = localStorage.getItem("csfyp_token");
       const body = new FormData();
       body.append("file", file);
-      const res = await fetch("/api/v1/ml/datasets/import", {
+      const ds = await api<Dataset>("/ml/datasets/import", {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || `Import failed (${res.status})`);
-      }
-      const ds = (await res.json()) as Dataset;
       setMessage(`Imported ${ds.name}: ${ds.row_count} rows`);
       setTick((t) => t + 1);
     } catch (e) {

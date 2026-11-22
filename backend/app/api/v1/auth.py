@@ -2,14 +2,13 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi import Depends
 
 from app.core.deps import CurrentUser, DbSession
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.models.user import User, UserActivity
-from app.schemas.auth import LoginRequest, TokenResponse, UserOut
+from app.schemas.auth import LoginRequest, TokenResponse, UserCreate, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -23,6 +22,25 @@ def login_json(payload: LoginRequest, db: DbSession):
 def login_form(db: DbSession, form: OAuth2PasswordRequestForm = Depends()):
     # OAuth2 form uses "username" field for email
     return _login(db, form.username, form.password)
+
+
+@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+def register(payload: UserCreate, db: DbSession):
+    if db.query(User).filter(User.email == payload.email.lower()).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    user = User(
+        email=payload.email.lower(),
+        full_name=payload.full_name,
+        hashed_password=get_password_hash(payload.password),
+        role=payload.role,
+        is_active=True,
+    )
+    db.add(user)
+    db.flush()
+    db.add(UserActivity(user_id=user.id, action="register", detail="User registered"))
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 def _login(db: DbSession, email: str, password: str) -> TokenResponse:

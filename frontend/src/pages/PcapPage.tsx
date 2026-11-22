@@ -113,19 +113,12 @@ export default function PcapPage() {
     setError(null);
     setMessage(null);
     try {
-      const token = localStorage.getItem("csfyp_token");
       const body = new FormData();
       body.append("file", file);
-      const res = await fetch("/api/v1/network/pcaps/upload", {
+      const row = await api<Pcap>("/network/pcaps/upload", {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || `Upload failed (${res.status})`);
-      }
-      const row = (await res.json()) as Pcap;
       setMessage(`Uploaded ${row.original_filename} (id ${row.id}). Click Process to extract flows.`);
       setSelectedId(row.id);
       refresh();

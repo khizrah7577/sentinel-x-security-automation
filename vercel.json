@@ -1,0 +1,18 @@
+{
+  "buildCommand": "npm --prefix frontend run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://cybersecurityfyp-production.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://cybersecurityfyp-production.up.railway.app/health"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

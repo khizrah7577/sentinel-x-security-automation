@@ -54,6 +54,8 @@ _cors = [
     settings.frontend_origin,
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
     "http://localhost",
     "http://127.0.0.1",
     "http://localhost:8080",
@@ -61,12 +63,20 @@ _cors = [
 ]
 if settings.cors_origins:
     _cors.extend([o.strip() for o in settings.cors_origins.split(",") if o.strip()])
+
+cors_origins = [o for o in dict.fromkeys(_cors) if o]
+
+# Allow all Vercel deployment preview and production domains (*.vercel.app)
+cors_origin_regex = r"^https://.*\.vercel\.app$"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list(dict.fromkeys(_cors)),
+    allow_origins=cors_origins,
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 app.include_router(health_router)

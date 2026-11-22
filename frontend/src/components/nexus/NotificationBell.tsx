@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bell } from "lucide-react";
-import { api } from "../../services/api";
+import { api, getWebSocketUrl, getToken } from "../../services/api";
 
 type Notif = {
   id: number;
@@ -29,15 +29,21 @@ export function NotificationBell() {
   useEffect(() => {
     void load();
     const id = window.setInterval(() => void load(), 15000);
-    const token = localStorage.getItem("csfyp_token");
+    const token = getToken();
     let ws: WebSocket | null = null;
     if (token) {
-      const proto = window.location.protocol === "https:" ? "wss" : "ws";
-      // Vite proxies /api; WS path through same host
-      ws = new WebSocket(`${proto}://${window.location.host}/api/v1/automation/ws?token=${encodeURIComponent(token)}`);
-      ws.onmessage = () => {
-        void load();
-      };
+      try {
+        const wsUrl = getWebSocketUrl("/automation/ws", token);
+        ws = new WebSocket(wsUrl);
+        ws.onmessage = () => {
+          void load();
+        };
+        ws.onerror = () => {
+          /* fail gracefully if websockets are not reachable */
+        };
+      } catch {
+        /* fail gracefully */
+      }
     }
     return () => {
       window.clearInterval(id);
