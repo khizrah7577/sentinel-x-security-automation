@@ -3,7 +3,6 @@ import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Shield } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { ApiError } from "../services/api";
 import { Button } from "../components/nexus/primitives";
 
 export default function LoginPage() {
@@ -22,7 +21,7 @@ export default function LoginPage() {
     try {
       await login(email.trim(), password);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setSubmitting(false);
     }

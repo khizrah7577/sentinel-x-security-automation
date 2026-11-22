@@ -83,7 +83,24 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
 
   const url = buildApiUrl(path);
-  const res = await fetch(url, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers });
+  } catch (err) {
+    // If a direct cross-origin fetch fails (e.g. CORS preflight rejection by backend),
+    // automatically fallback to the same-origin reverse-proxy at /api/v1
+    const fallbackPath = path.startsWith("/api/v1") ? path : `/api/v1${path.startsWith("/") ? path : `/${path}`}`;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      try {
+        res = await fetch(fallbackPath, { ...options, headers });
+      } catch {
+        throw err;
+      }
+    } else {
+      throw err;
+    }
+  }
+
   if (!res.ok) {
     let detail: string = `Request failed (${res.status})`;
     try {
