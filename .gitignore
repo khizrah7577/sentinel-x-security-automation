@@ -82,3 +82,7 @@ docker-data/
 *.tmp
 *.temp
 .cache/
+
+# Office lock files
+~$*
+*.tmp.docx
