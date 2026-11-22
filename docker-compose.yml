@@ -1,0 +1,133 @@
+# SENTINEL X — local Docker Desktop stack (data on D:)
+# Usage: docker compose up -d --build
+# URLs:  http://127.0.0.1:8080  (nginx)  |  API via same host /api/v1
+#
+# Postgres reuses existing bind mount — do not change without backup.
+
+name: cybersecurity_fyp
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cybersecurity_fyp_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cybersec}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cybersec_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-cybersecurity_fyp}
+    ports:
+      # Keep host 5432 for existing venv/dev tools; remove in prod compose
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - D:/CyberSecurity_FYP/data/database/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cybersec} -d ${POSTGRES_DB:-cybersecurity_fyp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - sentinel
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: sentinel-x-backend:local
+    container_name: sentinel_x_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_NAME: SENTINEL X
+      APP_ENV: ${APP_ENV:-docker}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      PROJECT_ROOT: /app
+      DATA_DIR: /app/data
+      PCAP_DIR: /app/data/pcaps
+      MODEL_DIR: /app/ml/saved_models
+      DATASET_DIR: /app/ml/datasets
+      LOG_DIR: /app/logs
+      REPORT_DIR: /app/reports
+      SECRET_STORE_DIR: /app/data/secrets
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-cybersec}:${POSTGRES_PASSWORD:-cybersec_change_me}@postgres:5432/${POSTGRES_DB:-cybersecurity_fyp}
+      SECRET_KEY: ${SECRET_KEY:-change-me-to-a-long-random-string-for-local-docker}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://127.0.0.1:8080}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://127.0.0.1:8080,http://localhost:8080}
+      OPENAI_API_KEY: ""
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      MONITORING_MODE: ${MONITORING_MODE:-offline}
+      RESPONSE_MODE: ${RESPONSE_MODE:-approval_required}
+      ZEEK_ENABLED: "false"
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@localhost}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-ChangeMeAdmin123!}
+      BOOTSTRAP_ANALYST_EMAIL: ${BOOTSTRAP_ANALYST_EMAIL:-analyst@localhost}
+      BOOTSTRAP_ANALYST_PASSWORD: ${BOOTSTRAP_ANALYST_PASSWORD:-ChangeMeAnalyst123!}
+    volumes:
+      - D:/CyberSecurity_FYP/data/pcaps:/app/data/pcaps
+      - D:/CyberSecurity_FYP/data/secrets:/app/data/secrets
+      - D:/CyberSecurity_FYP/data/uploads:/app/data/uploads
+      - D:/CyberSecurity_FYP/ml/saved_models:/app/ml/saved_models
+      - D:/CyberSecurity_FYP/ml/datasets:/app/ml/datasets
+      - D:/CyberSecurity_FYP/logs:/app/logs
+      - D:/CyberSecurity_FYP/reports:/app/reports
+    # Optional direct API access for debugging (prefer nginx :8080)
+    ports:
+      - "${BACKEND_HOST_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
+    stop_grace_period: 20s
+    networks:
+      - sentinel
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: sentinel-x-frontend:local
+    container_name: sentinel_x_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sentinel
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sentinel_x_nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - sentinel
+
+networks:
+  sentinel:
+    name: sentinel_x_net
+    driver: bridge

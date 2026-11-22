@@ -1,0 +1,147 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Graphite Emerald Intelligence — light */
+:root {
+  --bg: #f5f4ee;
+  --bg-secondary: #ecefe7;
+  --surface: #ffffff;
+  --elevated: #ffffff;
+  --border: #e0e5dc;
+  --text: #202b23;
+  --muted: #68756c;
+  --accent: #078b65;
+  --accent-soft: rgba(7, 139, 101, 0.12);
+  --accent-secondary: #b77c26;
+  --accent-ai: #8064b5;
+  --accent-ai-soft: rgba(128, 100, 181, 0.12);
+  --warning: #b77c26;
+  --critical: #d84c55;
+  --danger: #d84c55;
+  --info: #078b65;
+  --ok: #078b65;
+  --glow-critical: 0 0 20px rgba(216, 76, 85, 0.22);
+  --glow-accent: 0 0 18px rgba(7, 139, 101, 0.16);
+  --sidebar-w: 268px;
+  --sidebar-collapsed: 80px;
+  --radius: 14px;
+  --font: "Manrope", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--font);
+}
+
+/* Graphite Emerald Intelligence — dark */
+.dark {
+  --bg: #111713;
+  --bg-secondary: #141c17;
+  --surface: #19231d;
+  --elevated: #202c24;
+  --border: #2b3930;
+  --text: #f1f5f0;
+  --muted: #a2aea5;
+  --accent: #20c997;
+  --accent-soft: rgba(32, 201, 151, 0.14);
+  --accent-secondary: #e5a94d;
+  --accent-ai: #b9a1e8;
+  --accent-ai-soft: rgba(185, 161, 232, 0.16);
+  --warning: #e5a94d;
+  --critical: #f06464;
+  --danger: #f06464;
+  --info: #20c997;
+  --ok: #20c997;
+  --glow-critical: 0 0 22px rgba(240, 100, 100, 0.28);
+  --glow-accent: 0 0 20px rgba(32, 201, 151, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  transition: background-color 0.25s ease, color 0.25s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-mono {
+  font-family: var(--mono);
+}
+
+.nexus-grid-bg {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 15% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent),
+    radial-gradient(ellipse 55% 40% at 90% 0%, color-mix(in srgb, var(--accent-ai) 10%, transparent), transparent),
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: auto, auto, 48px 48px, 48px 48px;
+  background-position: 0 0, 0 0, -1px -1px, -1px -1px;
+}
+
+.nexus-glass {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+}
+
+.nexus-critical-glow {
+  box-shadow: var(--glow-critical);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.react-flow__node {
+  font-family: var(--font);
+}
+.react-flow__controls {
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+.react-flow__controls-button {
+  background: var(--elevated) !important;
+  border-bottom: 1px solid var(--border) !important;
+  fill: var(--text) !important;
+}
+.react-flow__minimap {
+  background: var(--bg-secondary) !important;
+}
+.react-flow__attribution {
+  display: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

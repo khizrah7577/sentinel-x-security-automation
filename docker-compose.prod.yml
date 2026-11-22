@@ -1,0 +1,161 @@
+# SENTINEL X — production / Oracle Cloud Always Free (ARM64 or AMD64)
+# Usage on server:
+#   docker compose -f docker-compose.prod.yml --env-file .env.cloud up -d --build
+#
+# Does NOT publish Postgres. Does NOT include network_lab / Kali / Zeek capture.
+
+name: sentinel_x_prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentinel_x_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sentinel_x}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-sentinel_x}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sentinel_internal
+    # No host ports — DB is internal only
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 768M
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: ${BACKEND_IMAGE:-sentinel-x-backend:prod}
+    container_name: sentinel_x_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_NAME: SENTINEL X
+      APP_ENV: production
+      APP_DEBUG: "false"
+      PROJECT_ROOT: /app
+      DATA_DIR: /app/data
+      PCAP_DIR: /app/data/pcaps
+      MODEL_DIR: /app/ml/saved_models
+      DATASET_DIR: /app/ml/datasets
+      LOG_DIR: /app/logs
+      REPORT_DIR: /app/reports
+      SECRET_STORE_DIR: /app/data/secrets
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sentinel_x}
+      SECRET_KEY: ${SECRET_KEY}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      OPENAI_API_KEY: ""
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      MONITORING_MODE: offline
+      RESPONSE_MODE: approval_required
+      ZEEK_ENABLED: "false"
+      CLOUD_LIGHTWEIGHT: "true"
+      DISABLE_HEAVY_ML_TRAINING: "true"
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+      BOOTSTRAP_ANALYST_EMAIL: ${BOOTSTRAP_ANALYST_EMAIL}
+      BOOTSTRAP_ANALYST_PASSWORD: ${BOOTSTRAP_ANALYST_PASSWORD}
+    volumes:
+      - app_pcaps:/app/data/pcaps
+      - app_secrets:/app/data/secrets
+      - app_uploads:/app/data/uploads
+      - app_models:/app/ml/saved_models
+      - app_datasets:/app/ml/datasets
+      - app_logs:/app/logs
+      - app_reports:/app/reports
+    # No public port — nginx only
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    stop_grace_period: 25s
+    networks:
+      - sentinel_internal
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1536M
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: ${FRONTEND_IMAGE:-sentinel-x-frontend:prod}
+    container_name: sentinel_x_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    expose:
+      - "80"
+    networks:
+      - sentinel_internal
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sentinel_x_nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_certs:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sentinel_internal
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+networks:
+  sentinel_internal:
+    name: sentinel_x_prod_net
+    driver: bridge
+    internal: false
+
+volumes:
+  postgres_data:
+  app_pcaps:
+  app_secrets:
+  app_uploads:
+  app_models:
+  app_datasets:
+  app_logs:
+  app_reports:
+  certbot_www:
+  certbot_certs:

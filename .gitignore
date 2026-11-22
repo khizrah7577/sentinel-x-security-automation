@@ -1,0 +1,84 @@
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+.env.cloud
+!.env.example
+!.env.docker.example
+!.env.cloud.example
+!.env.production.example
+data/secrets/**
+!data/secrets/.gitkeep
+*.pem
+*.key
+id_rsa*
+credentials.json
+secrets.json
+
+# Python
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+dist/
+build/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+yarn-error.log*
+
+# Data (keep folders, ignore contents)
+data/pcaps/**
+!data/pcaps/.gitkeep
+data/processed/**
+!data/processed/.gitkeep
+data/database/**
+!data/database/.gitkeep
+data/backups/**
+!data/backups/.gitkeep
+data/uploads/**
+!data/uploads/.gitkeep
+data/cache/**
+!data/cache/.gitkeep
+
+# ML artifacts
+ml/datasets/**
+!ml/datasets/.gitkeep
+ml/saved_models/**
+!ml/saved_models/.gitkeep
+*.joblib
+*.pkl
+*.h5
+
+# Logs & reports
+logs/**
+!logs/.gitkeep
+reports/**
+!reports/.gitkeep
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker
+docker-data/
+
+# Temp
+*.tmp
+*.temp
+.cache/
